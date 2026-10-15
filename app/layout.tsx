@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Sora } from "next/font/google";
+import ChatWidget from "@/components/chat/ChatWidget";
 import "./globals.css";
 
 // Downloaded at build time and served from the site itself, so visitors never request Google Fonts.
@@ -42,7 +43,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${sora.variable} ${manrope.variable}`}>
       {/* Browser extensions such as Grammarly add attributes to <body> before React hydrates. */}
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <ChatWidget />
+      </body>
     </html>
   );
 }
