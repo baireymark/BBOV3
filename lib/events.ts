@@ -1,10 +1,43 @@
 import type { ServiceKey } from "./content";
+import type { Lead } from "./bob-script";
 
 // Lightweight page-wide signals between otherwise independent client components
 // (hero strip, globe tags, footer links -> service tabs; CTAs -> consultation form).
 
 const SVC_EVENT = "bbo:select-service";
 const PREFILL_EVENT = "bbo:prefill-form";
+const BOB_EVENT = "bbo:open-bob";
+
+export type BobFlowKey = "evaluation" | "callback";
+
+export interface BobRequest {
+  flow?: BobFlowKey;
+  prefill?: Lead;
+}
+
+declare global {
+  interface Window {
+    BobChat?: {
+      open: () => void;
+      startEvaluation: (prefill?: Lead) => void;
+      startCallback: () => void;
+    };
+  }
+}
+
+export function openBob(request: BobRequest = {}) {
+  window.dispatchEvent(new CustomEvent<BobRequest>(BOB_EVENT, { detail: request }));
+}
+
+export function onOpenBob(fn: (request: BobRequest) => void) {
+  const handler = (e: Event) => fn((e as CustomEvent<BobRequest>).detail);
+  window.addEventListener(BOB_EVENT, handler);
+  return () => window.removeEventListener(BOB_EVENT, handler);
+}
+
+export function announceLead(detail: { flow: BobFlowKey; service?: string; size?: string }) {
+  window.dispatchEvent(new CustomEvent("bbo:lead", { detail }));
+}
 
 export interface FormPrefill {
   service?: string;
