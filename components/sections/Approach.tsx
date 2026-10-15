@@ -57,7 +57,8 @@ export default function Approach() {
             </p>
             <p className="coords">Republic of the Philippines, 12.8797° N, 121.7740° E</p>
           </div>
-          <div>
+          {/* Live clock: left out of the chat assistant's knowledge base, since its times are a snapshot. */}
+          <div data-chatbot-ignore>
             <h3 style={{ fontSize: "1.25rem", color: "var(--ink)", marginBottom: 16 }}>
               The time right now, from Manila to your market
             </h3>

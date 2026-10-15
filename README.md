@@ -18,6 +18,7 @@ The site is a single scrolling page. It explains what BBO does, how working with
 - [Editing content](#editing-content)
 - [Styling and branding](#styling-and-branding)
 - [Consultation form](#consultation-form)
+- [Chat assistant (Bob)](#chat-assistant-bob)
 - [Accessibility and performance](#accessibility-and-performance)
 - [Deployment](#deployment)
 - [Before going live](#before-going-live)
@@ -57,6 +58,7 @@ The sections below appear from top to bottom. The links in the header and footer
 - **Team sizer** slider, **live time-zone board**, and a cost "iceberg".
 - **Responsive layout** with a mobile menu, from 360 px phones up to wide desktops.
 - **Consultation form** with inline validation, a honeypot spam field, and a thank-you message.
+- **Chat assistant ("Bob")** in the bottom-right corner that answers questions from the site's own content, with no AI service involved. See [Chat assistant (Bob)](#chat-assistant-bob).
 
 ---
 
@@ -101,8 +103,13 @@ bbo-next/
 │   ├── page.tsx                   # Puts the sections together in order
 │   ├── globals.css                # Entire site stylesheet
 │   ├── icon.png                   # Favicon (BBO mark on a dark tile)
-│   └── api/consultation/route.ts  # Form submission endpoint
+│   ├── api/consultation/route.ts  # Form submission endpoint
+│   └── api/callback/route.ts      # Chat "Request a callback" endpoint
 ├── components/
+│   ├── chat/
+│   │   ├── ChatWidget.tsx         # Floating chat button; loads the panel on first use
+│   │   ├── ChatPanel.tsx          # Chat panel: messages, quick replies, answers
+│   │   └── CallbackForm.tsx       # Name, email, phone and consent form in the chat
 │   ├── Header.tsx                 # Fixed header, nav, mobile menu
 │   ├── Logo.tsx                   # Logo image (header, footer)
 │   ├── Globe.tsx                  # Canvas hero globe + service tags
@@ -121,7 +128,14 @@ bbo-next/
 ├── lib/
 │   ├── content.ts                 # ★ All editable site copy
 │   ├── events.ts                  # Service-tab / form-prefill signals between components
-│   └── land-mask.ts               # Packed land bitmap for the globe
+│   ├── land-mask.ts               # Packed land bitmap for the globe
+│   ├── mailer.ts                  # Sends form and callback emails over SMTP
+│   └── chatbot/
+│       ├── config.ts              # ★ Assistant name and its own lines
+│       ├── kb.ts                  # Builds the knowledge base and business details from the pages
+│       ├── search.ts              # Keyword matching, synonyms, intents, confidence rules
+│       ├── text.ts                # Tokenizer, stemmer, typo distance, sentence splitter
+│       └── session.ts             # Keeps the conversation while the visitor browses
 └── public/images/
     ├── bbo-logo-{300,400,664}.avif  # Full logo at three widths (header, footer)
     ├── bbo-logo.webp              # Full logo for browsers without AVIF
@@ -199,6 +213,52 @@ If these aren't set, development (`npm run dev`) logs submissions to the console
 
 ---
 
+## Chat assistant (Bob)
+
+Bob is a rule-based assistant. It uses no AI model and no external service. Every answer is a sentence or list copied from the site's own pages, with a "Read more" link to where it appears.
+
+### How it works
+
+1. **Knowledge base.** When a visitor first opens the chat, the browser fetches the home page (and any other same-origin pages it links to, up to 30), splits the content at its headings (`h1`–`h6`, plus FAQ `<summary>` questions), and stores each section's heading, text, and link. The result is cached for the browser session. Nothing is built at deploy time, so the knowledge base always matches the live pages.
+2. **Business details.** The name, logo, icon, phone, email, address, opening hours, social links, and key pages (about, services, pricing, FAQ, contact, privacy, careers) are read from the page markup: the header logo, `tel:` and `mailto:` links, header and footer links, and any JSON-LD `Organization` block. Colours and fonts come from the CSS variables in `globals.css`.
+3. **Matching.** A question is reduced to keywords and scored against every section (BM25 weighting, with extra weight for headings and menu labels). Word variations are handled by stemming ("pricing" = "price"), typos by edit distance ("pirce" → "price"), and synonyms by the list in `lib/chatbot/search.ts` ("cost" ≈ "price").
+4. **Replies.**
+   - A confident match shows the 1–3 most relevant sentences from the best section, plus "Read more".
+   - A close call shows "Did you mean…?" buttons.
+   - No match, or a question whose keywords mostly aren't on the site, shows the contact details and a "Request a callback" button.
+   - Questions about phone, email, hours, address, social media, privacy, or jobs are answered from the business details. When the site doesn't list something (for example opening hours), Bob says so instead of guessing.
+
+All page text is rendered as plain text (React escapes it), never as HTML. Links are limited to same-origin paths, `http(s)`, `tel:`, and `mailto:`.
+
+### Editing Bob
+
+| To change… | Edit |
+|------------|------|
+| The assistant's name, welcome line, and other replies | `lib/chatbot/config.ts` |
+| Synonyms, phrase rewrites, and confidence thresholds | `lib/chatbot/search.ts` (`SYNONYM_GROUPS`, `REWRITES`, `ANSWER_SCORE`…) |
+| What Bob knows | The page content itself. Bob picks up edits automatically. |
+| Content Bob should ignore | Add `data-chatbot-ignore` to the element (used on the live clock board) |
+| Chat styles | The "chat assistant (Bob)" block at the end of `app/globals.css` |
+
+The site doesn't currently list an address, opening hours, social profiles, a pricing page, or a privacy policy page, so Bob says these aren't listed. To change that:
+- Add a JSON-LD `Organization` block in `app/layout.tsx` with `address`, `openingHours`, and `sameAs`, or add the links to the header or footer.
+- Once a page with "Privacy" in its link appears, the callback form's consent checkbox links to it automatically.
+
+Section ids help Bob: a section's `id` (for example `id="industries"`) is used both as a search keyword and as the "Read more" anchor.
+
+### Callback requests
+
+The callback form (name, email, phone, consent) posts to `/api/callback`, which emails the request through the same SMTP settings as the consultation form (see [Email setup](#email-setup-nodemailer--smtp)). The email includes the question the visitor couldn't get answered and the page they were on.
+
+### Behaviour
+
+- Floating button in the bottom-right corner; on phones (and short screens) the chat fills the screen.
+- Fully keyboard accessible: Enter opens it, Escape closes it and returns focus to the button, and Tab stays inside the chat while it fills the screen. Messages are announced to screen readers.
+- The conversation is kept in `sessionStorage`, so it survives navigating between pages and reloading until the tab is closed. "Start over" in the chat header clears it.
+- Only the button ships with the page. The panel and search code load when the chat is first opened (or the button is hovered or focused).
+
+---
+
 ## Accessibility and performance
 
 - Semantic landmarks (`header`, `nav`, `main`, `footer`), and every section is labelled by its heading.
@@ -229,7 +289,8 @@ It also runs on any Node.js host (`npm run build && npm start`), or on platforms
 - [ ] Confirm the phone number and email in `lib/content.ts`.
 - [ ] Set the production domain and add an Open Graph image for link previews (`app/layout.tsx`).
 - [ ] Add analytics if needed (for example Vercel Analytics or Google Analytics).
-- [ ] Add privacy policy and terms pages if they're required where you operate.
+- [ ] Add privacy policy and terms pages if they're required where you operate. Link the privacy page from the footer so the chat's consent checkbox links to it.
+- [ ] Send a test callback request from the chat after deploying.
 
 ---
 

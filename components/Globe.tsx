@@ -99,7 +99,7 @@ export default function Globe() {
     }));
 
     let lon0 = 128 * RAD, tilt = 16 * RAD;
-    let W = 0, H = 0, R = 0, cx = 0, cy = 0, dpr = 1, cssW = 0, limit = 0;
+    let W = 0, H = 0, R = 0, cx = 0, cy = 0, dpr = 1, zoom = 1, cssW = 0, limit = 0;
     let sl = 0, cl = 1, st = 0, ct = 1;
 
     // Returns [screenX, screenY, depth, distance² from centre]; depth > 0 faces the viewer.
@@ -111,12 +111,15 @@ export default function Globe() {
 
     const resize = () => {
       const r = canvas.getBoundingClientRect();
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      W = canvas.width = Math.round(r.width * dpr);
-      H = canvas.height = Math.round(r.width * dpr);
+      // Big screens zoom the page (--zoom in globals.css). The rect is then in screen px, while offsetWidth and the
+      // tags' left/top are in page px, so dpr counts canvas px per page px and includes the zoom.
+      zoom = canvas.offsetWidth ? r.width / canvas.offsetWidth : 1;
+      dpr = Math.min(window.devicePixelRatio || 1, 2) * zoom;
+      cssW = r.width / zoom;
+      W = canvas.width = Math.round(cssW * dpr);
+      H = canvas.height = Math.round(cssW * dpr);
       R = W * 0.425; cx = W / 2; cy = H / 2;
-      cssW = r.width;
-      limit = Math.min(r.width, document.documentElement.clientWidth - r.left) - 6;
+      limit = Math.min(cssW, (document.documentElement.clientWidth - r.left) / zoom) - 6;
       cities.forEach((c) => { if (c.el) c.w = c.el.offsetWidth; });
     };
 
@@ -215,7 +218,7 @@ export default function Globe() {
     });
     listen(canvas, "pointermove", (e: PointerEvent) => {
       if (!dragging) return;
-      const k = 1 / (R / dpr);
+      const k = 1 / (R / dpr * zoom); // radius in screen px, the unit of clientX
       lon0 -= (e.clientX - lastX) * k;
       tilt = Math.max(-0.35, Math.min(0.9, tilt + (e.clientY - lastY) * k));
       lastX = e.clientX; lastY = e.clientY;

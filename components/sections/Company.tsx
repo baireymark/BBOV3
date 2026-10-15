@@ -38,7 +38,7 @@ export default function Company() {
         </div>
       </section>
 
-      <section className="section" aria-labelledby="values-title">
+      <section className="section" id="values" aria-labelledby="values-title">
         <div className="wrap split">
           <h2 className="display" id="values-title">
             What we hold ourselves to.
@@ -54,7 +54,7 @@ export default function Company() {
         </div>
       </section>
 
-      <section className="section mist" aria-labelledby="serve-title">
+      <section className="section mist" id="industries" aria-labelledby="serve-title">
         <div className="wrap">
           <h2 className="display" id="serve-title">
             BBO supports businesses across:

@@ -19,8 +19,8 @@ export default function Header() {
     <header className={`site-header${scrolled || open ? " solid" : ""}`} id="site-header">
       <div className="wrap">
         <a className="brand" href="#top" aria-label="Beyond Borders Outsourcing Services Inc. home">
-          {/* Rendered width: --logo-h × 3.02 (see globals.css). */}
-          <Logo sizes="(max-width: 860px) 182px, 286px" priority />
+          {/* Rendered width: --logo-h × 3.02 × --zoom (see globals.css). */}
+          <Logo sizes="(max-width: 860px) 182px, (min-width: 1920px) 344px, (min-width: 1600px) 315px, 286px" priority />
         </a>
         <button className="menu-btn" aria-expanded={open} aria-controls="site-nav" onClick={() => setOpen((o) => !o)}>
           {open ? "Close" : "Menu"}

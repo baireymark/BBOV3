@@ -43,7 +43,7 @@ export function Footer() {
       <div className="wrap">
         <div className="foot-grid">
           <div>
-            <Logo sizes="330px" />
+            <Logo sizes="(min-width: 1920px) 396px, (min-width: 1600px) 363px, 330px" />
             <p className="tagline">Your business. Our people. One team.</p>
             <p>
               <a href={CONTACT.phoneHref}>{CONTACT.phone}</a>
